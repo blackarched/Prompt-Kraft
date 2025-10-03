@@ -19,9 +19,44 @@ Transform your basic prompts into professional, optimized instructions for AI mo
 - 🎨 **Beautiful UI**: Cyberpunk-themed interface with smooth animations
 - 📱 **Responsive Design**: Works perfectly on desktop and mobile devices
 
-## 🚀 Quick Start
+## 🚀 **ONE-CLICK INSTALLATION**
 
-### Option 1: Python CLI (Recommended)
+### **Automatic Setup (Recommended)**
+
+**Just run ONE command and everything is installed and running:**
+
+```bash
+# Linux/macOS - Complete automated setup
+curl -sSL https://raw.githubusercontent.com/blackarched/Prompt-Kraft/main/install_and_run.sh | bash
+
+# Or download and run locally:
+git clone https://github.com/blackarched/Prompt-Kraft.git
+cd Prompt-Kraft
+./install_and_run.sh
+```
+
+```cmd
+# Windows - Complete automated setup
+git clone https://github.com/blackarched/Prompt-Kraft.git
+cd Prompt-Kraft
+install_and_run.bat
+```
+
+```bash
+# Cross-platform Python installer
+python3 install_and_run.py
+```
+
+**✨ The installer automatically:**
+- ✅ Checks system requirements
+- ✅ Installs all dependencies  
+- ✅ Sets up configuration
+- ✅ Starts API server (port 8080)
+- ✅ Starts web interface (port 8000)
+- ✅ Runs comprehensive tests
+- ✅ Shows usage examples
+
+### **Manual Installation**
 
 ```bash
 # Clone the repository
@@ -41,30 +76,11 @@ python prompt_craft.py "write a Python function to sort a list"
 python prompt_craft.py -m gpt4 "explain quantum computing"
 ```
 
-### Option 2: Web Interface
+### **After Installation**
 
-```bash
-# Serve locally (recommended)
-python -m http.server 8000
-
-# Open in browser
-open http://localhost:8000/prompt_craft.html
-```
-
-### Option 3: React Component
-
-```bash
-npm install promptcraft
-```
-
-```tsx
-import PromptCraftUI from 'promptcraft';
-
-<PromptCraftUI 
-  onPromptEnhanced={(prompt, template) => console.log(prompt)}
-  defaultModel="gpt4" 
-/>
-```
+**🌐 Web Interface:** `http://localhost:8000/prompt_craft.html`  
+**📖 API Documentation:** `http://localhost:8080/docs`  
+**🔍 Health Check:** `http://localhost:8080/health`
 
 ## 📖 Documentation
 
