@@ -21,6 +21,11 @@ const PromptCraftUI = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [apiConnected, setApiConnected] = useState(false);
+  const [analysisData, setAnalysisData] = useState(null);
+  const [metricsData, setMetricsData] = useState(null);
+  const [advancedEngineUsed, setAdvancedEngineUsed] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [systemCapabilities, setSystemCapabilities] = useState(null);
   const inputRef = useRef(null);
   const outputRef = useRef(null);
 
@@ -59,9 +64,10 @@ const PromptCraftUI = () => {
 
   const loadConfiguration = async () => {
     try {
-      const [configResponse, modelsResponse] = await Promise.all([
+      const [configResponse, modelsResponse, capabilitiesResponse] = await Promise.all([
         fetch(`${API_BASE_URL}/api/config`),
-        fetch(`${API_BASE_URL}/api/models`)
+        fetch(`${API_BASE_URL}/api/models`),
+        fetch(`${API_BASE_URL}/api/capabilities`)
       ]);
 
       if (!configResponse.ok || !modelsResponse.ok) {
@@ -70,9 +76,16 @@ const PromptCraftUI = () => {
 
       const configData = await configResponse.json();
       const modelsData = await modelsResponse.json();
-
+      
       setConfig(configData);
       setModels(modelsData.models);
+      
+      // Load capabilities if available
+      if (capabilitiesResponse.ok) {
+        const capabilitiesData = await capabilitiesResponse.json();
+        setSystemCapabilities(capabilitiesData);
+      }
+      
       setError('');
     } catch (err) {
       setError('Failed to load configuration from API');
@@ -149,6 +162,15 @@ const PromptCraftUI = () => {
       // Use API to enhance the prompt
       const result = await enhancePromptAPI(userInput, selectedTemplate, selectedModel);
       setEnhancedPrompt(result.enhanced_prompt);
+      
+      // Store analytics data if available
+      if (result.analysis) {
+        setAnalysisData(result.analysis);
+      }
+      if (result.metrics) {
+        setMetricsData(result.metrics);
+      }
+      setAdvancedEngineUsed(result.advanced_engine_used || false);
       
       if (outputRef.current) {
         outputRef.current.scrollTop = 0;
@@ -540,6 +562,142 @@ const PromptCraftUI = () => {
               <span className="text-sm group-hover:text-green-300">Auto-Enhance</span>
             </label>
           </div>
+        </div>
+      )}
+
+      {/* Advanced Analytics Panel */}
+      {(analysisData || metricsData) && (
+        <div className="relative z-10 mb-6 glass-morph p-6 rounded-lg border-green-500/30 animate-in fade-in duration-300">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-green-400 flex items-center">
+              <Sparkles className="w-5 h-5 mr-2" />
+              Advanced Analytics
+              {advancedEngineUsed && (
+                <span className="ml-2 px-2 py-1 text-xs bg-green-900/50 text-green-300 rounded-full">
+                  AI-Powered
+                </span>
+              )}
+            </h3>
+            <button
+              onClick={() => setShowAnalytics(!showAnalytics)}
+              className="text-green-400 hover:text-green-300 transition-colors"
+            >
+              {showAnalytics ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </button>
+          </div>
+
+          {showAnalytics && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Analysis Data */}
+              {analysisData && (
+                <div className="space-y-4">
+                  <h4 className="text-lg font-semibold text-cyan-400 flex items-center">
+                    <Brain className="w-4 h-4 mr-2" />
+                    Prompt Analysis
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-300">Domain:</span>
+                      <span className="text-green-400 capitalize">{analysisData.domain.replace('_', ' ')}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-300">Intent:</span>
+                      <span className="text-blue-400 capitalize">{analysisData.intent.replace('_', ' ')}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-300">Complexity:</span>
+                      <span className={`capitalize ${
+                        analysisData.complexity === 'expert' ? 'text-red-400' :
+                        analysisData.complexity === 'complex' ? 'text-orange-400' :
+                        analysisData.complexity === 'moderate' ? 'text-yellow-400' : 'text-green-400'
+                      }`}>
+                        {analysisData.complexity}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-300">Technical Depth:</span>
+                      <span className="text-purple-400">{analysisData.technical_depth}/10</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-300">Creativity Level:</span>
+                      <span className="text-pink-400">{analysisData.creativity_level}/10</span>
+                    </div>
+                    {analysisData.keywords && analysisData.keywords.length > 0 && (
+                      <div className="mt-3">
+                        <span className="text-gray-300 text-xs">Key Concepts:</span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {analysisData.keywords.slice(0, 5).map((keyword, index) => (
+                            <span key={index} className="px-2 py-1 bg-cyan-900/30 text-cyan-300 text-xs rounded">
+                              {keyword}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Metrics Data */}
+              {metricsData && (
+                <div className="space-y-4">
+                  <h4 className="text-lg font-semibold text-pink-400 flex items-center">
+                    <Zap className="w-4 h-4 mr-2" />
+                    Enhancement Metrics
+                  </h4>
+                  <div className="space-y-3">
+                    {/* Overall Score */}
+                    <div className="mb-4">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-gray-300 font-medium">Overall Score</span>
+                        <span className="text-green-400 font-bold">{(metricsData.overall_score * 100).toFixed(0)}%</span>
+                      </div>
+                      <div className="w-full bg-gray-700 rounded-full h-2">
+                        <div 
+                          className="bg-gradient-to-r from-green-500 to-emerald-400 h-2 rounded-full transition-all duration-500"
+                          style={{ width: `${metricsData.overall_score * 100}%` }}
+                        ></div>
+                      </div>
+                    </div>
+
+                    {/* Individual Metrics */}
+                    {[
+                      { key: 'clarity_score', label: 'Clarity', color: 'cyan' },
+                      { key: 'specificity_score', label: 'Specificity', color: 'blue' },
+                      { key: 'completeness_score', label: 'Completeness', color: 'purple' },
+                      { key: 'effectiveness_score', label: 'Effectiveness', color: 'pink' },
+                      { key: 'token_efficiency', label: 'Token Efficiency', color: 'green' }
+                    ].map(({ key, label, color }) => (
+                      <div key={key} className="flex justify-between items-center">
+                        <span className="text-gray-300 text-sm">{label}:</span>
+                        <div className="flex items-center space-x-2">
+                          <div className="w-16 bg-gray-700 rounded-full h-1.5">
+                            <div 
+                              className={`bg-${color}-400 h-1.5 rounded-full transition-all duration-300`}
+                              style={{ width: `${metricsData[key] * 100}%` }}
+                            ></div>
+                          </div>
+                          <span className={`text-${color}-400 text-sm font-medium`}>
+                            {(metricsData[key] * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* System Capabilities Info */}
+          {systemCapabilities && systemCapabilities.advanced_engine_available && (
+            <div className="mt-4 pt-4 border-t border-gray-600">
+              <div className="flex items-center space-x-2 text-xs text-green-400">
+                <Sparkles className="w-3 h-3" />
+                <span>Powered by Advanced AI Analysis Engine</span>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
