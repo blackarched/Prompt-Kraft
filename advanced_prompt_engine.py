@@ -8,6 +8,17 @@ from dataclasses import dataclass
 from enum import Enum
 import hashlib
 
+# Import advanced components
+try:
+    from advanced_relevance_engine import (
+        AdvancedRelevanceEngine, SemanticContext, RelevanceScore, 
+        UserPreferences, RelevanceLevel
+    )
+    from advanced_settings_manager import AdvancedSettingsManager, AdvancedSettings
+    ADVANCED_COMPONENTS_AVAILABLE = True
+except ImportError:
+    ADVANCED_COMPONENTS_AVAILABLE = False
+
 class PromptComplexity(Enum):
     SIMPLE = "simple"
     MODERATE = "moderate"
@@ -47,15 +58,31 @@ class EnhancementMetrics:
 
 class AdvancedPromptEngine:
     """
-    Advanced prompt enhancement engine with sophisticated analysis and optimization capabilities.
+    Advanced prompt enhancement engine with sophisticated analysis, relevance validation,
+    and comprehensive optimization capabilities.
     """
     
-    def __init__(self):
+    def __init__(self, settings_manager: AdvancedSettingsManager = None):
+        # Initialize settings manager
+        self.settings_manager = settings_manager or AdvancedSettingsManager()
+        self.settings = self.settings_manager.current_settings
+        
+        # Initialize advanced components if available
+        if ADVANCED_COMPONENTS_AVAILABLE:
+            self.relevance_engine = AdvancedRelevanceEngine()
+        else:
+            self.relevance_engine = None
+        
+        # Initialize core components
         self.domain_patterns = self._initialize_domain_patterns()
         self.intent_patterns = self._initialize_intent_patterns()
         self.complexity_indicators = self._initialize_complexity_indicators()
         self.enhancement_strategies = self._initialize_enhancement_strategies()
         self.model_capabilities = self._initialize_model_capabilities()
+        
+        # Performance and caching
+        self.analysis_cache = {} if self.settings.cache_analysis_results else None
+        self.generation_stats = {"total_generated": 0, "cache_hits": 0}
         
     def _initialize_domain_patterns(self) -> Dict[str, List[str]]:
         """Initialize domain-specific pattern recognition."""
@@ -525,28 +552,74 @@ class AdvancedPromptEngine:
         
         return min(creativity_score, 10)
     
-    def generate_enhanced_prompt(self, user_input: str, model: str = "default", template_override: str = None) -> Tuple[str, str, PromptAnalysis, EnhancementMetrics]:
-        """Generate an enhanced prompt with sophisticated optimization."""
-        # Analyze the input prompt
-        analysis = self.analyze_prompt(user_input)
+    def generate_enhanced_prompt(self, user_input: str, model: str = "default", 
+                               template_override: str = None, user_id: str = None) -> Tuple[str, str, PromptAnalysis, EnhancementMetrics]:
+        """Generate an enhanced prompt with sophisticated optimization and relevance validation."""
         
-        # Select or override template based on analysis
+        # Update generation stats
+        self.generation_stats["total_generated"] += 1
+        
+        # Check cache first if enabled
+        cache_key = None
+        if self.analysis_cache is not None:
+            cache_key = self._generate_cache_key(user_input, model, template_override)
+            if cache_key in self.analysis_cache:
+                self.generation_stats["cache_hits"] += 1
+                cached_result = self.analysis_cache[cache_key]
+                return cached_result["enhanced_prompt"], cached_result["template_name"], cached_result["analysis"], cached_result["metrics"]
+        
+        # Perform deep analysis using advanced relevance engine if available
+        if self.relevance_engine and self.settings.enable_deep_analysis:
+            semantic_context = self.relevance_engine.analyze_user_input_deeply(user_input, user_id)
+            analysis = self._convert_semantic_to_prompt_analysis(semantic_context)
+        else:
+            # Fallback to basic analysis
+            analysis = self.analyze_prompt(user_input)
+        
+        # Select optimal template based on comprehensive analysis
         if template_override:
             template_key = template_override
         else:
-            template_key = self._select_optimal_template(analysis)
+            template_key = self._select_optimal_template_advanced(analysis, semantic_context if self.relevance_engine else None)
         
         # Get model capabilities
         model_caps = self.model_capabilities.get(model, self.model_capabilities["default"])
         
-        # Generate the enhanced prompt
-        enhanced_prompt = self._build_enhanced_prompt(user_input, analysis, template_key, model_caps)
+        # Generate enhanced prompt with iterative refinement
+        enhanced_prompt = self._generate_with_quality_assurance(
+            user_input, analysis, template_key, model_caps, semantic_context if self.relevance_engine else None
+        )
         
-        # Calculate enhancement metrics
-        metrics = self._calculate_enhancement_metrics(user_input, enhanced_prompt, analysis)
+        # Calculate comprehensive metrics
+        metrics = self._calculate_comprehensive_metrics(user_input, enhanced_prompt, analysis)
+        
+        # Validate relevance if advanced engine available
+        if self.relevance_engine and self.settings.enable_quality_validation:
+            relevance_score = self.relevance_engine.calculate_comprehensive_relevance(
+                user_input, enhanced_prompt, semantic_context, user_id
+            )
+            
+            # Check if meets minimum relevance threshold
+            if relevance_score.overall_relevance < self.settings.minimum_relevance_score:
+                # Attempt to improve the prompt
+                enhanced_prompt = self._improve_prompt_relevance(
+                    user_input, enhanced_prompt, analysis, relevance_score, model_caps
+                )
+                
+                # Recalculate metrics
+                metrics = self._calculate_comprehensive_metrics(user_input, enhanced_prompt, analysis)
         
         # Get template name
         template_name = self._get_template_name(template_key, analysis)
+        
+        # Cache result if caching enabled
+        if self.analysis_cache is not None and cache_key:
+            self.analysis_cache[cache_key] = {
+                "enhanced_prompt": enhanced_prompt,
+                "template_name": template_name,
+                "analysis": analysis,
+                "metrics": metrics
+            }
         
         return enhanced_prompt, template_name, analysis, metrics
     
@@ -1091,3 +1164,223 @@ class AdvancedPromptEngine:
             return f"{base_name} (Advanced)"
         else:
             return base_name
+    
+    def _generate_cache_key(self, user_input: str, model: str, template_override: str = None) -> str:
+        """Generate a cache key for the input parameters."""
+        key_data = f"{user_input}|{model}|{template_override or 'auto'}"
+        return hashlib.md5(key_data.encode()).hexdigest()
+    
+    def _convert_semantic_to_prompt_analysis(self, semantic_context) -> PromptAnalysis:
+        """Convert semantic context to prompt analysis format."""
+        # Determine complexity from semantic context
+        if hasattr(semantic_context, 'technical_depth') and hasattr(semantic_context, 'creativity_level'):
+            if semantic_context.technical_depth >= 8 or semantic_context.creativity_level >= 8:
+                complexity = PromptComplexity.EXPERT
+            elif semantic_context.technical_depth >= 6 or semantic_context.creativity_level >= 6:
+                complexity = PromptComplexity.COMPLEX
+            elif semantic_context.technical_depth >= 3 or semantic_context.creativity_level >= 3:
+                complexity = PromptComplexity.MODERATE
+            else:
+                complexity = PromptComplexity.SIMPLE
+        else:
+            complexity = PromptComplexity.MODERATE
+        
+        # Get the primary domain
+        if hasattr(semantic_context, 'domain_indicators') and semantic_context.domain_indicators:
+            primary_domain = max(semantic_context.domain_indicators.items(), key=lambda x: x[1])[0]
+            confidence = max(semantic_context.domain_indicators.values())
+        else:
+            primary_domain = "general"
+            confidence = 0.5
+        
+        # Get keywords and entities
+        keywords = getattr(semantic_context, 'primary_concepts', [])[:10]
+        entities = getattr(semantic_context, 'technical_terms', [])[:10]
+        
+        return PromptAnalysis(
+            complexity=complexity,
+            intent=PromptIntent.CONVERSATIONAL,  # Default
+            domain=primary_domain,
+            confidence=confidence,
+            keywords=keywords,
+            entities=entities,
+            sentiment="neutral",
+            length_category="medium",
+            technical_depth=getattr(semantic_context, 'technical_depth', 5),
+            creativity_level=getattr(semantic_context, 'creativity_level', 5)
+        )
+    
+    def _select_optimal_template_advanced(self, analysis: PromptAnalysis, semantic_context=None) -> str:
+        """Advanced template selection using both analysis and semantic context."""
+        if semantic_context and hasattr(semantic_context, 'context_type'):
+            # Use advanced selection based on semantic context
+            context_type = getattr(semantic_context.context_type, 'value', 'professional')
+            technical_depth = getattr(semantic_context, 'technical_depth', 5)
+            creativity_level = getattr(semantic_context, 'creativity_level', 5)
+            formality_level = getattr(semantic_context, 'formality_level', 5)
+            primary_concepts = getattr(semantic_context, 'primary_concepts', [])
+            action_verbs = getattr(semantic_context, 'action_verbs', [])
+            
+            if context_type == "technical" and technical_depth >= 7:
+                return "expert_technical"
+            elif context_type == "creative" and creativity_level >= 7:
+                return "advanced_creative"
+            elif formality_level >= 8:
+                return "research_synthesis"
+            elif "problem" in primary_concepts or "solve" in action_verbs:
+                return "expert_problem_solving"
+            elif "analyze" in action_verbs or "analysis" in primary_concepts:
+                return "deep_analysis"
+        
+        # Fallback to basic template selection
+        return self._select_optimal_template(analysis)
+    
+    def _generate_with_quality_assurance(self, user_input: str, analysis: PromptAnalysis, 
+                                       template_key: str, model_caps: Dict[str, Any], 
+                                       semantic_context=None) -> str:
+        """Generate enhanced prompt with quality assurance checks."""
+        
+        # Generate initial prompt
+        enhanced_prompt = self._build_enhanced_prompt(user_input, analysis, template_key, model_caps)
+        
+        # Apply quality assurance if enabled
+        if self.settings.enable_quality_validation:
+            # Check completeness
+            if self.settings.enable_completeness_check:
+                enhanced_prompt = self._ensure_completeness(enhanced_prompt, analysis, semantic_context)
+            
+            # Check accuracy
+            if self.settings.enable_accuracy_validation:
+                enhanced_prompt = self._ensure_accuracy(enhanced_prompt, analysis, semantic_context)
+            
+            # Check appropriateness
+            if self.settings.enable_appropriateness_check:
+                enhanced_prompt = self._ensure_appropriateness(enhanced_prompt, analysis, semantic_context)
+        
+        return enhanced_prompt
+    
+    def _ensure_completeness(self, prompt: str, analysis: PromptAnalysis, semantic_context=None) -> str:
+        """Ensure the prompt is complete and addresses all requirements."""
+        if semantic_context and hasattr(semantic_context, 'primary_concepts'):
+            missing_concepts = []
+            prompt_lower = prompt.lower()
+            
+            for concept in semantic_context.primary_concepts:
+                if concept not in prompt_lower:
+                    missing_concepts.append(concept)
+            
+            # Add missing concepts if any (but not too many)
+            if missing_concepts and len(missing_concepts) <= 3:
+                addition = f"\n\n**Additional Considerations:**\n"
+                for concept in missing_concepts:
+                    addition += f"- Address {concept} requirements and implications\n"
+                prompt += addition
+        
+        return prompt
+    
+    def _ensure_accuracy(self, prompt: str, analysis: PromptAnalysis, semantic_context=None) -> str:
+        """Ensure technical accuracy and appropriateness."""
+        if analysis.technical_depth >= 5:
+            if "**Validation:**" not in prompt and "**Technical Validation:**" not in prompt:
+                prompt += "\n\n**Technical Validation:**\n- Verify technical accuracy and feasibility\n- Ensure compliance with industry standards\n- Validate against current technology constraints"
+        
+        return prompt
+    
+    def _ensure_appropriateness(self, prompt: str, analysis: PromptAnalysis, semantic_context=None) -> str:
+        """Ensure tone and content appropriateness."""
+        if semantic_context and hasattr(semantic_context, 'formality_level'):
+            if semantic_context.formality_level >= 8:
+                # Ensure formal language
+                if not any(formal_word in prompt.lower() for formal_word in ["professional", "systematic", "comprehensive"]):
+                    prompt = prompt.replace("**Role:**", "**Professional Role:**")
+        
+        return prompt
+    
+    def _calculate_comprehensive_metrics(self, user_input: str, enhanced_prompt: str, analysis: PromptAnalysis) -> EnhancementMetrics:
+        """Calculate comprehensive enhancement metrics with advanced scoring."""
+        
+        # Use existing calculation as base
+        base_metrics = self._calculate_enhancement_metrics(user_input, enhanced_prompt, analysis)
+        
+        # Enhance with additional factors if settings allow
+        if self.settings.quality_assurance_level >= 7:
+            # Apply quality boost for comprehensive prompts
+            if len(enhanced_prompt) > 2000:
+                base_metrics.completeness_score = min(base_metrics.completeness_score * 1.1, 1.0)
+            
+            # Boost effectiveness for structured prompts
+            if "**Framework:**" in enhanced_prompt or "**Methodology:**" in enhanced_prompt:
+                base_metrics.effectiveness_score = min(base_metrics.effectiveness_score * 1.1, 1.0)
+        
+        return base_metrics
+    
+    def _improve_prompt_relevance(self, user_input: str, enhanced_prompt: str, analysis: PromptAnalysis, 
+                                relevance_score, model_caps: Dict[str, Any]) -> str:
+        """Improve prompt relevance based on relevance score feedback."""
+        
+        improvements = []
+        
+        # Improve semantic match if low
+        if hasattr(relevance_score, 'semantic_match') and relevance_score.semantic_match < 0.7:
+            key_terms = re.findall(r'\b[A-Z][a-z]+\b|\b\w{4,}\b', user_input)
+            if key_terms:
+                improvements.append(f"\n**Key Focus Areas:** {', '.join(key_terms[:5])}")
+        
+        # Improve context alignment if low
+        if hasattr(relevance_score, 'context_alignment') and relevance_score.context_alignment < 0.7:
+            improvements.append("\n**Context Alignment:** Ensure all recommendations are specifically tailored to the described context and requirements.")
+        
+        # Improve intent accuracy if low
+        if hasattr(relevance_score, 'intent_accuracy') and relevance_score.intent_accuracy < 0.7:
+            improvements.append(f"\n**Intent Focus:** Prioritize addressing the core request: \"{user_input}\"")
+        
+        # Apply improvements
+        if improvements:
+            enhanced_prompt += "\n" + "".join(improvements)
+        
+        return enhanced_prompt
+    
+    def get_generation_statistics(self) -> Dict[str, Any]:
+        """Get generation statistics and performance metrics."""
+        stats = self.generation_stats.copy()
+        
+        if stats["total_generated"] > 0:
+            stats["cache_hit_rate"] = stats["cache_hits"] / stats["total_generated"]
+        else:
+            stats["cache_hit_rate"] = 0.0
+        
+        return stats
+    
+    def clear_cache(self):
+        """Clear the analysis cache."""
+        if self.analysis_cache is not None:
+            self.analysis_cache.clear()
+    
+    def update_settings(self, new_settings):
+        """Update engine settings and reconfigure as needed."""
+        self.settings = new_settings
+        
+        # Update cache settings
+        if not new_settings.cache_analysis_results and self.analysis_cache is not None:
+            self.analysis_cache = None
+        elif new_settings.cache_analysis_results and self.analysis_cache is None:
+            self.analysis_cache = {}
+    
+    def get_user_preferences(self, user_id: str):
+        """Get user preferences if relevance engine available."""
+        if self.relevance_engine:
+            return self.relevance_engine.user_preferences_db.get(user_id)
+        return None
+    
+    def update_user_preferences(self, user_id: str, preferences):
+        """Update user preferences if relevance engine available."""
+        if self.relevance_engine:
+            self.relevance_engine.update_user_preferences(user_id, preferences)
+    
+    def learn_from_feedback(self, user_id: str, user_input: str, enhanced_prompt: str, 
+                          feedback_score: float, feedback_comments: str = ""):
+        """Learn from user feedback if relevance engine available."""
+        if self.relevance_engine:
+            self.relevance_engine.learn_from_feedback(
+                user_id, user_input, enhanced_prompt, feedback_score, feedback_comments
+            )

@@ -14,6 +14,8 @@ from prompt_craft import load_config, enhance_prompt, create_default_config
 # Import advanced engine if available
 try:
     from advanced_prompt_engine import AdvancedPromptEngine, PromptAnalysis, EnhancementMetrics
+    from advanced_relevance_engine import AdvancedRelevanceEngine, UserPreferences, RelevanceLevel
+    from advanced_settings_manager import AdvancedSettingsManager, AdvancedSettings
     ADVANCED_ENGINE_AVAILABLE = True
 except ImportError:
     ADVANCED_ENGINE_AVAILABLE = False
@@ -54,8 +56,55 @@ class TemplateResponse(BaseModel):
 class ModelResponse(BaseModel):
     models: List[Dict[str, str]]
 
+class UserPreferencesRequest(BaseModel):
+    user_id: str
+    preferences: Dict[str, Any]
+
+class UserPreferencesResponse(BaseModel):
+    user_id: str
+    preferences: Dict[str, Any]
+    success: bool
+
+class AdvancedSettingsRequest(BaseModel):
+    settings: Dict[str, Any]
+    profile_name: Optional[str] = None
+
+class AdvancedSettingsResponse(BaseModel):
+    settings: Dict[str, Any]
+    validation_errors: List[str] = []
+    success: bool
+
+class FeedbackRequest(BaseModel):
+    user_id: str
+    user_input: str
+    enhanced_prompt: str
+    feedback_score: float  # 0.0-1.0
+    feedback_comments: Optional[str] = ""
+
+class RelevanceValidationRequest(BaseModel):
+    user_input: str
+    enhanced_prompt: str
+    user_id: Optional[str] = None
+
 # Global config cache
 _config_cache = None
+_settings_manager = None
+_advanced_engine = None
+
+def get_settings_manager():
+    """Get settings manager instance."""
+    global _settings_manager
+    if _settings_manager is None and ADVANCED_ENGINE_AVAILABLE:
+        _settings_manager = AdvancedSettingsManager()
+    return _settings_manager
+
+def get_advanced_engine():
+    """Get advanced engine instance."""
+    global _advanced_engine
+    if _advanced_engine is None and ADVANCED_ENGINE_AVAILABLE:
+        settings_manager = get_settings_manager()
+        _advanced_engine = AdvancedPromptEngine(settings_manager)
+    return _advanced_engine
 
 def get_config():
     """Get configuration, using cache for performance"""
@@ -152,9 +201,9 @@ async def enhance_user_prompt(request: EnhanceRequest):
         if (ADVANCED_ENGINE_AVAILABLE and 
             config.get("advanced_features", {}).get("intelligent_analysis", False)):
             try:
-                engine = AdvancedPromptEngine()
+                engine = get_advanced_engine()
                 enhanced_prompt, template_name, analysis, metrics = engine.generate_enhanced_prompt(
-                    request.user_input, request.model, request.template
+                    request.user_input, request.model, request.template, user_id="api_user"
                 )
                 
                 # Convert analysis and metrics to dictionaries for JSON response
@@ -345,6 +394,258 @@ async def get_capabilities():
             "token_efficiency"
         ] if ADVANCED_ENGINE_AVAILABLE else []
     }
+
+@app.post("/api/user-preferences", response_model=UserPreferencesResponse, summary="Update User Preferences")
+async def update_user_preferences(request: UserPreferencesRequest):
+    """Update user preferences for personalized prompt generation"""
+    try:
+        if not ADVANCED_ENGINE_AVAILABLE:
+            raise HTTPException(status_code=503, detail="Advanced features not available")
+        
+        engine = get_advanced_engine()
+        if not engine.relevance_engine:
+            raise HTTPException(status_code=503, detail="Relevance engine not available")
+        
+        # Convert preferences dict to UserPreferences object
+        preferences = UserPreferences(**request.preferences)
+        engine.update_user_preferences(request.user_id, preferences)
+        
+        return UserPreferencesResponse(
+            user_id=request.user_id,
+            preferences=request.preferences,
+            success=True
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update preferences: {str(e)}")
+
+@app.get("/api/user-preferences/{user_id}", response_model=UserPreferencesResponse, summary="Get User Preferences")
+async def get_user_preferences(user_id: str):
+    """Get user preferences for personalized prompt generation"""
+    try:
+        if not ADVANCED_ENGINE_AVAILABLE:
+            raise HTTPException(status_code=503, detail="Advanced features not available")
+        
+        engine = get_advanced_engine()
+        preferences = engine.get_user_preferences(user_id)
+        
+        if preferences:
+            return UserPreferencesResponse(
+                user_id=user_id,
+                preferences=preferences.__dict__,
+                success=True
+            )
+        else:
+            # Return default preferences
+            default_prefs = UserPreferences()
+            return UserPreferencesResponse(
+                user_id=user_id,
+                preferences=default_prefs.__dict__,
+                success=True
+            )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get preferences: {str(e)}")
+
+@app.post("/api/feedback", summary="Submit User Feedback")
+async def submit_feedback(request: FeedbackRequest):
+    """Submit user feedback for learning and improvement"""
+    try:
+        if not ADVANCED_ENGINE_AVAILABLE:
+            raise HTTPException(status_code=503, detail="Advanced features not available")
+        
+        engine = get_advanced_engine()
+        engine.learn_from_feedback(
+            request.user_id,
+            request.user_input,
+            request.enhanced_prompt,
+            request.feedback_score,
+            request.feedback_comments
+        )
+        
+        return {"success": True, "message": "Feedback recorded successfully"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to record feedback: {str(e)}")
+
+@app.post("/api/validate-relevance", summary="Validate Prompt Relevance")
+async def validate_relevance(request: RelevanceValidationRequest):
+    """Validate the relevance of an enhanced prompt"""
+    try:
+        if not ADVANCED_ENGINE_AVAILABLE:
+            raise HTTPException(status_code=503, detail="Advanced features not available")
+        
+        engine = get_advanced_engine()
+        if not engine.relevance_engine:
+            raise HTTPException(status_code=503, detail="Relevance engine not available")
+        
+        # Analyze user input
+        semantic_context = engine.relevance_engine.analyze_user_input_deeply(
+            request.user_input, request.user_id
+        )
+        
+        # Calculate relevance score
+        relevance_score = engine.relevance_engine.calculate_comprehensive_relevance(
+            request.user_input, request.enhanced_prompt, semantic_context, request.user_id
+        )
+        
+        # Get relevance level
+        relevance_level = engine.relevance_engine.get_relevance_level(relevance_score)
+        
+        return {
+            "relevance_score": {
+                "overall_relevance": relevance_score.overall_relevance,
+                "semantic_match": relevance_score.semantic_match,
+                "context_alignment": relevance_score.context_alignment,
+                "intent_accuracy": relevance_score.intent_accuracy,
+                "domain_specificity": relevance_score.domain_specificity,
+                "completeness_match": relevance_score.completeness_match,
+                "tone_appropriateness": relevance_score.tone_appropriateness,
+                "technical_accuracy": relevance_score.technical_accuracy,
+                "user_preference_match": relevance_score.user_preference_match
+            },
+            "relevance_level": relevance_level.value,
+            "semantic_context": {
+                "domain": semantic_context.domain_indicators,
+                "context_type": semantic_context.context_type.value,
+                "formality_level": semantic_context.formality_level,
+                "urgency_level": semantic_context.urgency_level,
+                "primary_concepts": semantic_context.primary_concepts,
+                "technical_terms": semantic_context.technical_terms
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to validate relevance: {str(e)}")
+
+@app.get("/api/advanced-settings", response_model=AdvancedSettingsResponse, summary="Get Advanced Settings")
+async def get_advanced_settings():
+    """Get current advanced settings configuration"""
+    try:
+        if not ADVANCED_ENGINE_AVAILABLE:
+            raise HTTPException(status_code=503, detail="Advanced features not available")
+        
+        settings_manager = get_settings_manager()
+        settings_dict = settings_manager.export_settings(include_defaults=True)
+        
+        return AdvancedSettingsResponse(
+            settings=settings_dict,
+            validation_errors=[],
+            success=True
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get settings: {str(e)}")
+
+@app.post("/api/advanced-settings", response_model=AdvancedSettingsResponse, summary="Update Advanced Settings")
+async def update_advanced_settings(request: AdvancedSettingsRequest):
+    """Update advanced settings configuration"""
+    try:
+        if not ADVANCED_ENGINE_AVAILABLE:
+            raise HTTPException(status_code=503, detail="Advanced features not available")
+        
+        settings_manager = get_settings_manager()
+        
+        # Apply profile if specified
+        if request.profile_name:
+            success = settings_manager.apply_profile(request.profile_name)
+            if not success:
+                return AdvancedSettingsResponse(
+                    settings={},
+                    validation_errors=settings_manager.get_validation_errors(),
+                    success=False
+                )
+        
+        # Update individual settings
+        if request.settings:
+            success = settings_manager.import_settings(request.settings, validate=True)
+            if not success:
+                return AdvancedSettingsResponse(
+                    settings={},
+                    validation_errors=settings_manager.get_validation_errors(),
+                    success=False
+                )
+        
+        # Save settings
+        settings_manager.commit_changes()
+        
+        # Update engine with new settings
+        engine = get_advanced_engine()
+        if engine:
+            engine.update_settings(settings_manager.current_settings)
+        
+        return AdvancedSettingsResponse(
+            settings=settings_manager.export_settings(),
+            validation_errors=[],
+            success=True
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update settings: {str(e)}")
+
+@app.get("/api/settings-profiles", summary="Get Settings Profiles")
+async def get_settings_profiles():
+    """Get available settings profiles"""
+    try:
+        if not ADVANCED_ENGINE_AVAILABLE:
+            raise HTTPException(status_code=503, detail="Advanced features not available")
+        
+        settings_manager = get_settings_manager()
+        profiles = settings_manager.get_all_profiles()
+        
+        return {"profiles": profiles}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get profiles: {str(e)}")
+
+@app.get("/api/generation-stats", summary="Get Generation Statistics")
+async def get_generation_stats():
+    """Get prompt generation statistics and performance metrics"""
+    try:
+        if not ADVANCED_ENGINE_AVAILABLE:
+            return {"message": "Advanced features not available", "stats": {}}
+        
+        engine = get_advanced_engine()
+        if engine:
+            stats = engine.get_generation_statistics()
+            return {"stats": stats}
+        else:
+            return {"stats": {}}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get stats: {str(e)}")
+
+@app.post("/api/clear-cache", summary="Clear Analysis Cache")
+async def clear_analysis_cache():
+    """Clear the analysis cache to free memory"""
+    try:
+        if not ADVANCED_ENGINE_AVAILABLE:
+            return {"message": "Advanced features not available"}
+        
+        engine = get_advanced_engine()
+        if engine:
+            engine.clear_cache()
+            return {"success": True, "message": "Cache cleared successfully"}
+        else:
+            return {"success": False, "message": "Engine not available"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to clear cache: {str(e)}")
+
+@app.get("/api/settings-recommendations", summary="Get Settings Recommendations")
+async def get_settings_recommendations():
+    """Get personalized settings recommendations"""
+    try:
+        if not ADVANCED_ENGINE_AVAILABLE:
+            raise HTTPException(status_code=503, detail="Advanced features not available")
+        
+        settings_manager = get_settings_manager()
+        recommendations = settings_manager.get_recommendations()
+        
+        return {"recommendations": recommendations}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get recommendations: {str(e)}")
 
 if __name__ == "__main__":
     # Run the server
