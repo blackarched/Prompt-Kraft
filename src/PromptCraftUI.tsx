@@ -1,6 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import type { PromptCraftUIProps, PromptCraftConfig, EnhancementResult } from './types'
 import { enhancePrompt, createDefaultConfig, ValidationError, ConfigurationError } from './utils'
+import { useAria } from './accessibility/ariaManager'
+import { useScreenReader } from './accessibility/screenReaderSupport'
+import { useKeyboardNavigation } from './accessibility/keyboardNavigation'
+import { useTranslation } from './i18n/i18nManager'
 
 const PromptCraftUI: React.FC<PromptCraftUIProps> = ({
   config: userConfig,
