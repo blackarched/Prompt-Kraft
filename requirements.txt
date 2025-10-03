@@ -2,16 +2,38 @@
 # Core dependencies
 pyperclip>=1.8.2
 
+# API Server dependencies
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.3.0
+
+# Database and analytics
+sqlite3  # Built into Python
+pandas>=2.0.0
+
+# HTTP requests and integrations
+requests>=2.31.0
+aiohttp>=3.8.0
+
+# Email integration (optional)
+# smtplib  # Built into Python
+
+# PostgreSQL support (optional)
+psycopg2-binary>=2.9.0
+
 # Development dependencies (optional)
 pytest>=7.4.0
 pytest-cov>=4.1.0
+pytest-asyncio>=0.21.0
 black>=23.0.0
 flake8>=6.0.0
 mypy>=1.5.0
 
 # Configuration validation
 jsonschema>=4.19.0
-pydantic>=2.3.0
 
 # Environment management
 python-dotenv>=1.0.0
+
+# Async support
+asyncio  # Built into Python 3.7+
