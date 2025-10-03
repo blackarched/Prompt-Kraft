@@ -531,6 +531,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                  .replace("{model_instructions}", modelInst);
         
         setTimeout(() => {
+            // Safely set content and show output
             enhancedPromptOutput.textContent = enhancedPrompt;
             outputContainer.classList.remove('hidden');
             if(animateOutput) {
@@ -546,17 +547,70 @@ document.addEventListener('DOMContentLoaded', () => {
         if (copied) return;
         navigator.clipboard.writeText(enhancedPrompt).then(() => {
             copied = true;
-            const originalContent = copyButton.innerHTML;
-            document.getElementById('copy-button-content').innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-green-400 inline-block"><path d="M20 6 9 17l-5-5"></path></svg>
-                <span class="text-green-400">Copied!</span>
-            `;
+            const copyButtonContent = document.getElementById('copy-button-content');
+            
+            // Create success elements securely
+            copyButtonContent.textContent = '';
+            
+            const successSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            successSvg.setAttribute('width', '24');
+            successSvg.setAttribute('height', '24');
+            successSvg.setAttribute('viewBox', '0 0 24 24');
+            successSvg.setAttribute('fill', 'none');
+            successSvg.setAttribute('stroke', 'currentColor');
+            successSvg.setAttribute('stroke-width', '2');
+            successSvg.setAttribute('stroke-linecap', 'round');
+            successSvg.setAttribute('stroke-linejoin', 'round');
+            successSvg.className = 'w-4 h-4 text-green-400 inline-block';
+            
+            const successPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            successPath.setAttribute('d', 'M20 6 9 17l-5-5');
+            successSvg.appendChild(successPath);
+            
+            const successSpan = document.createElement('span');
+            successSpan.className = 'text-green-400';
+            successSpan.textContent = 'Copied!';
+            
+            copyButtonContent.appendChild(successSvg);
+            copyButtonContent.appendChild(successSpan);
+            
             setTimeout(() => {
                 copied = false;
-                 document.getElementById('copy-button-content').innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 group-hover:text-pink-400 inline-block"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
-                    <span class="group-hover:text-pink-400">Copy</span>
-                `;
+                
+                // Reset to original content securely
+                copyButtonContent.textContent = '';
+                
+                const originalSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                originalSvg.setAttribute('width', '24');
+                originalSvg.setAttribute('height', '24');
+                originalSvg.setAttribute('viewBox', '0 0 24 24');
+                originalSvg.setAttribute('fill', 'none');
+                originalSvg.setAttribute('stroke', 'currentColor');
+                originalSvg.setAttribute('stroke-width', '2');
+                originalSvg.setAttribute('stroke-linecap', 'round');
+                originalSvg.setAttribute('stroke-linejoin', 'round');
+                originalSvg.className = 'w-4 h-4 group-hover:text-pink-400 inline-block';
+                
+                const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                rect.setAttribute('width', '14');
+                rect.setAttribute('height', '14');
+                rect.setAttribute('x', '8');
+                rect.setAttribute('y', '8');
+                rect.setAttribute('rx', '2');
+                rect.setAttribute('ry', '2');
+                
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', 'M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2');
+                
+                originalSvg.appendChild(rect);
+                originalSvg.appendChild(path);
+                
+                const originalSpan = document.createElement('span');
+                originalSpan.className = 'group-hover:text-pink-400';
+                originalSpan.textContent = 'Copy';
+                
+                copyButtonContent.appendChild(originalSvg);
+                copyButtonContent.appendChild(originalSpan);
             }, 2000);
         }).catch(err => {
             console.error('Copy failed:', err);
@@ -570,15 +624,22 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     const populateModelDropdown = () => {
-        modelDropdownMenu.innerHTML = '';
+        modelDropdownMenu.textContent = ''; // Clear existing content securely
         models.forEach(model => {
             const button = document.createElement('button');
             button.className = `w-full p-4 flex items-center justify-between hover:bg-cyan-900/50 transition-all duration-200 ${selectedModel === model.id ? 'bg-cyan-900/30 border-l-4 border-pink-500' : ''}`;
             button.dataset.modelId = model.id;
-            button.innerHTML = `
-                <span>${model.name}</span>
-                <div class="w-3 h-3 rounded-full bg-gradient-to-r ${model.color}"></div>
-            `;
+            
+            // Create elements securely without innerHTML
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = model.name;
+            
+            const colorDiv = document.createElement('div');
+            colorDiv.className = `w-3 h-3 rounded-full bg-gradient-to-r ${model.color}`;
+            
+            button.appendChild(nameSpan);
+            button.appendChild(colorDiv);
+            
             button.addEventListener('click', () => {
                 selectedModel = model.id;
                 modelButtonText.textContent = model.name;
@@ -590,20 +651,45 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     const populateTemplateDropdown = () => {
-        templateDropdownMenu.innerHTML = '';
+        templateDropdownMenu.textContent = ''; // Clear existing content securely
         Object.entries(config.templates).forEach(([key, template]) => {
             const button = document.createElement('button');
             button.className = `w-full p-4 flex items-center space-x-3 hover:bg-cyan-900/50 transition-all duration-200 ${selectedTemplate === key ? 'bg-cyan-900/30 border-l-4 border-pink-500' : ''}`;
             button.dataset.templateId = key;
-            button.innerHTML = `
-                <span class="w-5 h-5 text-pink-400">${template.icon}</span>
-                <span>${template.name}</span>
-            `;
+            
+            // Create elements securely without innerHTML
+            const iconSpan = document.createElement('span');
+            iconSpan.className = 'w-5 h-5 text-pink-400';
+            // Parse SVG icon safely
+            const tempDiv = document.createElement('div');
+            tempDiv.insertAdjacentHTML('afterbegin', template.icon);
+            const svgElement = tempDiv.querySelector('svg');
+            if (svgElement) {
+                iconSpan.appendChild(svgElement);
+            }
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = template.name;
+            
+            button.appendChild(iconSpan);
+            button.appendChild(nameSpan);
+            
             button.addEventListener('click', () => {
                 selectedTemplate = key;
                 templateButtonText.textContent = template.name;
-                templateButtonIcon.innerHTML = template.icon;
-                templateLabelIcon.innerHTML = template.icon;
+                
+                // Update button icons safely
+                templateButtonIcon.textContent = '';
+                templateLabelIcon.textContent = '';
+                
+                // Clone the SVG element for button icon
+                if (svgElement) {
+                    const buttonSvg = svgElement.cloneNode(true);
+                    const labelSvg = svgElement.cloneNode(true);
+                    templateButtonIcon.appendChild(buttonSvg);
+                    templateLabelIcon.appendChild(labelSvg);
+                }
+                
                 showTemplateDropdown = false;
                 render();
             });
