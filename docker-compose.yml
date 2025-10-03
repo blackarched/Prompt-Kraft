@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  promptcraft-api:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - PROMPTCRAFT_ENV=production
+      - PROMPTCRAFT_API_HOST=0.0.0.0
+      - PROMPTCRAFT_API_PORT=8080
+      - PROMPTCRAFT_DEBUG=false
+      - PROMPTCRAFT_LOG_LEVEL=info
+      - PROMPTCRAFT_ENABLE_ANALYTICS=true
+    volumes:
+      - ./config:/app/config
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  promptcraft-db:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=promptcraft
+      - POSTGRES_USER=promptcraft
+      - POSTGRES_PASSWORD=promptcraft_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+  promptcraft-redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+volumes:
+  postgres_data:
+  redis_data:

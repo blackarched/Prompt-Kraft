@@ -392,6 +392,376 @@ with open('custom_config.json', 'w') as f:
     json.dump(config, f, indent=4)
 ```
 
+## REST API Server
+
+### Starting the API Server
+
+```bash
+# Using the startup script
+./start_api.sh
+
+# Direct execution
+python api_server.py
+
+# With Docker
+docker-compose up -d promptcraft-api
+```
+
+### API Endpoints
+
+#### POST /enhance
+Enhance a single prompt.
+
+**Request Body:**
+```json
+{
+  "prompt": "write a Python function",
+  "model": "gpt4",
+  "template": "code",
+  "user_id": "user123"
+}
+```
+
+**Response:**
+```json
+{
+  "enhanced_prompt": "**Role:** You are a senior software engineer...",
+  "template_used": "Code Generation 💻",
+  "model": "gpt4",
+  "processing_time_ms": 45.2,
+  "request_id": "req_1234567890",
+  "timestamp": "2024-12-01T10:30:00Z"
+}
+```
+
+#### POST /batch
+Process multiple prompts in batch.
+
+**Request Body:**
+```json
+{
+  "prompts": [
+    "write a function",
+    "explain AI",
+    "create a story"
+  ],
+  "model": "default",
+  "user_id": "user123"
+}
+```
+
+**Response:**
+```json
+{
+  "results": [...],
+  "total_processed": 3,
+  "successful": 3,
+  "failed": 0,
+  "batch_id": "batch_1234567890",
+  "processing_time_ms": 156.7
+}
+```
+
+#### GET /analytics
+Get usage analytics (requires authentication).
+
+**Headers:**
+```
+Authorization: Bearer your-api-key
+```
+
+**Response:**
+```json
+{
+  "total_requests": 1250,
+  "requests_today": 45,
+  "popular_templates": {
+    "Code Generation": 450,
+    "Creative Writing": 320
+  },
+  "popular_models": {
+    "gpt4": 600,
+    "default": 400
+  },
+  "average_processing_time": 67.3,
+  "error_rate": 2.1
+}
+```
+
+#### GET /templates
+Get available templates.
+
+**Response:**
+```json
+{
+  "templates": {
+    "code": {
+      "name": "Code Generation 💻",
+      "description": "Template for code generation"
+    }
+  }
+}
+```
+
+#### GET /models
+Get available models.
+
+**Response:**
+```json
+{
+  "models": ["default", "gpt4", "claude", "gemini"]
+}
+```
+
+#### POST /integrations/webhook
+Webhook endpoint for integrations.
+
+**Request Body:**
+```json
+{
+  "prompt": "your prompt here",
+  "model": "gpt4"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "enhanced_prompt": "enhanced prompt text",
+  "template_used": "General Expert 🧠"
+}
+```
+
+#### GET /health
+Health check endpoint.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "version": "3.0.1",
+  "uptime_seconds": 3600.5,
+  "requests_processed": 1250
+}
+```
+
+### Authentication
+
+Set the API key in environment variables:
+```bash
+export PROMPTCRAFT_API_KEY=your-secret-key
+```
+
+Include in requests:
+```bash
+curl -H "Authorization: Bearer your-secret-key" \
+     http://localhost:8080/analytics
+```
+
+### Rate Limiting
+
+The API implements basic rate limiting:
+- 100 requests per minute per IP
+- 1000 requests per hour per API key
+- Batch requests count as number of items processed
+
+## Analytics System
+
+### CLI Usage
+
+```bash
+# View summary
+python analytics.py --summary
+
+# Detailed analytics for 30 days
+python analytics.py --detailed 30
+
+# Export to file
+python analytics.py --export report.json
+
+# Cleanup old data (keep 90 days)
+python analytics.py --cleanup 90
+```
+
+### Programmatic Usage
+
+```python
+from analytics import AnalyticsTracker
+
+# Initialize tracker
+analytics = AnalyticsTracker()
+
+# Track a request
+analytics.track_request(
+    user_id="user123",
+    template="code",
+    model="gpt4",
+    processing_time=45.2,
+    success=True
+)
+
+# Get analytics summary
+summary = analytics.get_analytics_summary()
+print(summary)
+```
+
+## Batch Processing
+
+### CLI Usage
+
+```bash
+# Process CSV file
+python batch_processor.py \
+  --csv input.csv \
+  --output results.csv \
+  --prompt-column "prompt_text" \
+  --model-column "target_model"
+
+# Process JSON file
+python batch_processor.py \
+  --json input.json \
+  --output results.json \
+  --batch-size 50
+```
+
+### API Usage
+
+```python
+import asyncio
+from batch_processor import BatchProcessor, BatchItem
+from prompt_craft import load_config
+
+async def main():
+    config = load_config()
+    processor = BatchProcessor(config)
+    
+    # Create batch items
+    items = [
+        BatchItem(id="1", prompt="write a function", model="gpt4"),
+        BatchItem(id="2", prompt="explain AI", model="claude")
+    ]
+    
+    # Process batch
+    results = await processor.process_batch(
+        [item.prompt for item in items],
+        model="default"
+    )
+    
+    for result in results:
+        print(f"Success: {result.success}")
+        if result.success:
+            print(f"Enhanced: {result.enhanced_prompt}")
+
+asyncio.run(main())
+```
+
+### File Formats
+
+**CSV Input:**
+```csv
+prompt,model
+"write a Python function",gpt4
+"explain machine learning",claude
+"create a story",default
+```
+
+**JSON Input:**
+```json
+[
+  {
+    "prompt": "write a Python function",
+    "model": "gpt4"
+  },
+  {
+    "prompt": "explain machine learning",
+    "model": "claude"
+  }
+]
+```
+
+## Integrations
+
+### Configuration
+
+Create `~/.config/promptcraft/integrations.json`:
+
+```json
+{
+  "integrations": {
+    "slack": {
+      "enabled": true,
+      "settings": {
+        "webhook_url": "https://hooks.slack.com/services/...",
+        "channel": "#ai-prompts"
+      }
+    },
+    "discord": {
+      "enabled": true,
+      "settings": {
+        "webhook_url": "https://discord.com/api/webhooks/..."
+      }
+    },
+    "email": {
+      "enabled": false,
+      "settings": {
+        "smtp_server": "smtp.gmail.com",
+        "smtp_port": 587,
+        "username": "your-email@gmail.com",
+        "password": "your-app-password",
+        "from_email": "your-email@gmail.com",
+        "to_emails": ["recipient@example.com"]
+      }
+    },
+    "database": {
+      "enabled": true,
+      "settings": {
+        "db_type": "sqlite",
+        "connection_string": "enhanced_prompts.db",
+        "table_name": "enhanced_prompts"
+      }
+    }
+  }
+}
+```
+
+### Usage
+
+```python
+from integrations import send_to_integrations
+
+# Send to all enabled integrations
+results = await send_to_integrations(
+    enhanced_prompt="Enhanced prompt text",
+    original_prompt="Original prompt",
+    template="Code Generation",
+    model="gpt4",
+    metadata={"user_id": "user123"}
+)
+
+# Send to specific integrations
+results = await send_to_integrations(
+    enhanced_prompt="Enhanced prompt text",
+    original_prompt="Original prompt",
+    template="Code Generation",
+    model="gpt4",
+    integration_names=["slack", "discord"]
+)
+```
+
+### CLI Management
+
+```bash
+# List enabled integrations
+python integrations.py --list
+
+# Show integration status
+python integrations.py --status
+
+# Show config file location
+python integrations.py --config
+```
+
 ## Troubleshooting
 
 ### Common Issues
@@ -402,22 +772,28 @@ with open('custom_config.json', 'w') as f:
    Solution: Run `promptcraft -i` to create default config
    ```
 
-2. **Permission Denied**
+2. **API Server Won't Start**
    ```bash
-   Error: Permission denied creating config directory
-   Solution: Check directory permissions or use --config flag
+   Error: Port 8080 already in use
+   Solution: Set PROMPTCRAFT_API_PORT=8081 or kill process on port 8080
    ```
 
-3. **Invalid Input**
+3. **Database Connection Error**
    ```bash
-   Error: Input too long. Maximum 10000 characters allowed
-   Solution: Reduce input length or increase MAX_INPUT_LENGTH
+   Error: Unable to connect to database
+   Solution: Check database settings in integrations.json
    ```
 
 4. **Missing Dependencies**
    ```bash
-   Error: pyperclip not found
-   Solution: pip install pyperclip
+   Error: fastapi not found
+   Solution: pip install -r requirements.txt
+   ```
+
+5. **Integration Failures**
+   ```bash
+   Error: Slack webhook failed
+   Solution: Verify webhook URL and network connectivity
    ```
 
 ### Debug Mode
@@ -428,9 +804,26 @@ Enable verbose logging for troubleshooting:
 # CLI
 promptcraft -v "your prompt"
 
-# Environment variable
+# API Server
 export PROMPTCRAFT_DEBUG=true
 export PROMPTCRAFT_LOG_LEVEL=debug
+./start_api.sh
+
+# Analytics
+python analytics.py --summary --verbose
+```
+
+### Performance Tuning
+
+```bash
+# Increase batch processing workers
+export PROMPTCRAFT_MAX_WORKERS=16
+
+# Increase concurrent batches
+export PROMPTCRAFT_MAX_CONCURRENT_BATCHES=10
+
+# Adjust request timeout
+export PROMPTCRAFT_REQUEST_TIMEOUT=60000
 ```
 
 ### Support

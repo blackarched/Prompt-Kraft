@@ -374,16 +374,67 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 - **Discussions**: [GitHub Discussions](https://github.com/blackarched/Prompt-Kraft/discussions)
 - **Documentation**: [User Guide](docs/USER_GUIDE.md) and [API Docs](docs/API.md)
 
+## 🔥 **NEW: API Server & Advanced Features**
+
+### **REST API Server**
+```bash
+# Start the API server
+./start_api.sh
+
+# Or with Docker
+docker-compose up -d
+```
+
+**API Endpoints:**
+- `POST /enhance` - Enhance single prompt
+- `POST /batch` - Batch process multiple prompts  
+- `GET /analytics` - Usage analytics (requires auth)
+- `POST /integrations/webhook` - Webhook integration
+- `GET /health` - Health check
+
+### **Analytics & Usage Tracking**
+```bash
+# View analytics summary
+python analytics.py --summary
+
+# Export analytics data
+python analytics.py --export analytics_report.json
+
+# Cleanup old data
+python analytics.py --cleanup 90
+```
+
+### **Batch Processing**
+```bash
+# Process CSV file
+python batch_processor.py --csv input.csv --output results.csv
+
+# Process JSON file  
+python batch_processor.py --json input.json --output results.json
+```
+
+### **Third-Party Integrations**
+- **Slack**: Send enhanced prompts to Slack channels
+- **Discord**: Post to Discord via webhooks
+- **Email**: SMTP email notifications
+- **Database**: Store in SQLite/PostgreSQL
+- **Webhooks**: Generic HTTP webhook support
+
+```bash
+# Configure integrations
+python integrations.py --status
+```
+
 ## 🚀 What's Next?
 
+- [x] **API Server**: RESTful API for integration ✅ 
+- [x] **Batch Processing**: Enhanced batch operations ✅
+- [x] **Analytics**: Usage analytics and optimization insights ✅
+- [x] **Integrations**: Third-party service integrations ✅
 - [ ] **Test Suite**: Comprehensive test coverage
 - [ ] **CI/CD Pipeline**: Automated testing and deployment
 - [ ] **Plugin System**: Extensible architecture for custom plugins
-- [ ] **Cloud Integration**: Deploy as a web service
-- [ ] **API Server**: RESTful API for integration
 - [ ] **Mobile App**: Native mobile applications
-- [ ] **Batch Processing**: Enhanced batch operations
-- [ ] **Analytics**: Usage analytics and optimization insights
 
 ---
 
