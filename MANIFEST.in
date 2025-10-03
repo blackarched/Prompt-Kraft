@@ -1,0 +1,32 @@
+# Include additional files in the package
+include README.md
+include LICENSE
+include CONTRIBUTING.md
+include requirements.txt
+include pyproject.toml
+include setup.cfg
+
+# Include documentation
+recursive-include docs *.md *.rst *.txt
+
+# Include configuration examples
+include .env.example
+include .env.development
+include .env.production
+
+# Include type stubs
+recursive-include types *.d.ts
+
+# Exclude development and build files
+exclude .gitignore
+exclude .pre-commit-config.yaml
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+recursive-exclude * *.so
+recursive-exclude * .DS_Store
+recursive-exclude tests *
+recursive-exclude .github *
+recursive-exclude build *
+recursive-exclude dist *
+recursive-exclude .venv *
+recursive-exclude venv *
