@@ -73,12 +73,19 @@ const PromptCraftUI = () => {
 
   const detectTemplate = (input) => {
     const lower = input.toLowerCase();
+    let templateKey = 'general'; // Default fallback
+    let maxMatches = 0;
+    
+    // Find best matching template based on keywords
     for (const [key, keywords] of Object.entries(config.keywords)) {
-      if (keywords.some(kw => lower.includes(kw))) {
-        return key;
+      const matches = keywords.filter(kw => lower.includes(kw)).length;
+      if (matches > maxMatches) {
+        maxMatches = matches;
+        templateKey = key;
       }
     }
-    return 'general';
+    
+    return templateKey;
   };
 
   const handleEnhance = () => {
