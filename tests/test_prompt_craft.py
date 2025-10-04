@@ -21,7 +21,7 @@ from prompt_craft import (
     validate_input, 
     validate_config,
     create_default_config,
-    detect_template,
+    load_config,
     PromptCraftError,
     ConfigurationError,
     ValidationError
